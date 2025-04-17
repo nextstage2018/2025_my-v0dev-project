@@ -4,9 +4,9 @@ import { BigQuery } from "@google-cloud/bigquery"
 export async function GET() {
   try {
     // 環境変数からBigQueryの設定を取得
-    const projectId = process.env.BIGQUERY_PROJECT_ID
-    const datasetId = process.env.BIGQUERY_DATASET_ID
-    const region = process.env.BIGQUERY_REGION
+    const projectId = process.env.BIGQUERY_PROJECT_ID || ""
+    const datasetId = process.env.BIGQUERY_DATASET_ID || ""
+    const region = process.env.BIGQUERY_REGION || ""
 
     if (!projectId || !datasetId) {
       return NextResponse.json(

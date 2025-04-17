@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -46,7 +46,7 @@ export default function ClientForm({ clientId }: { clientId?: string }) {
   })
 
   // 既存のクライアントを編集する場合、データを読み込む
-  useState(() => {
+  useEffect(() => {
     if (clientId) {
       const client = LocalStorage.getClientById(clientId)
       if (client) {
@@ -60,7 +60,7 @@ export default function ClientForm({ clientId }: { clientId?: string }) {
         })
       }
     }
-  })
+  }, [clientId, form])
 
   const onSubmit = async (data: ClientFormValues) => {
     setIsLoading(true)

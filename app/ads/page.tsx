@@ -85,14 +85,16 @@ export default function AdsPage() {
                   <TableCell className="text-right">{ad.ctr}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end space-x-2">
-                      <Link href={`/ads/details?id=${ad.id}`}>
+                      <Link href={`/ads/${ad.id}`}>
                         <Button variant="ghost" size="icon">
                           <Eye className="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Button variant="ghost" size="icon">
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      <Link href={`/ads/edit/${ad.id}`}>
+                        <Button variant="ghost" size="icon">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </Link>
                       <Button variant="ghost" size="icon">
                         <Trash className="h-4 w-4" />
                       </Button>
