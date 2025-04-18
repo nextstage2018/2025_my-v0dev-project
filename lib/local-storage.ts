@@ -141,8 +141,14 @@ export function deleteClient(clientId: string): void {
   setStorageItem(STORAGE_KEYS.CLIENTS, clients)
 }
 
+// 命名規則に従ったクライアントID生成
 export function generateNewClientId(): string {
-  return `client_${Date.now()}_${Math.floor(Math.random() * 1000)}`
+  // 現在のクライアント数を取得し、次の番号を生成
+  const clients = getClients()
+  const nextNum = clients.length + 1
+  // 5桁の数字にフォーマット（例：00001）
+  const formattedNum = nextNum.toString().padStart(5, "0")
+  return `cl${formattedNum}`
 }
 
 // プロジェクト関連の関数
@@ -180,8 +186,14 @@ export function deleteProject(projectId: string): void {
   setStorageItem(STORAGE_KEYS.PROJECTS, projects)
 }
 
+// 命名規則に従ったプロジェクトID生成
 export function generateNewProjectId(clientId: string): string {
-  return `project_${clientId}_${Date.now()}_${Math.floor(Math.random() * 1000)}`
+  // 同じクライアントに属するプロジェクト数を取得
+  const clientProjects = getProjectsByClientId(clientId)
+  const nextNum = clientProjects.length + 1
+  // 5桁の数字にフォーマット（例：00001）
+  const formattedNum = nextNum.toString().padStart(5, "0")
+  return `${clientId}_pr${formattedNum}`
 }
 
 // キャンペーン関連の関数
@@ -219,8 +231,14 @@ export function deleteCampaign(campaignId: string): void {
   setStorageItem(STORAGE_KEYS.CAMPAIGNS, campaigns)
 }
 
+// 命名規則に従ったキャンペーンID生成
 export function generateNewCampaignId(projectId: string): string {
-  return `campaign_${projectId}_${Date.now()}_${Math.floor(Math.random() * 1000)}`
+  // 同じプロジェクトに属するキャンペーン数を取得
+  const projectCampaigns = getCampaignsByProjectId(projectId)
+  const nextNum = projectCampaigns.length + 1
+  // 5桁の数字にフォーマット（例：00001）
+  const formattedNum = nextNum.toString().padStart(5, "0")
+  return `${projectId}_ca${formattedNum}`
 }
 
 // 広告セット関連の関数
@@ -258,8 +276,14 @@ export function deleteAdSet(adSetId: string): void {
   setStorageItem(STORAGE_KEYS.AD_SETS, adSets)
 }
 
+// 命名規則に従った広告セットID生成
 export function generateNewAdSetId(campaignId: string): string {
-  return `adset_${campaignId}_${Date.now()}_${Math.floor(Math.random() * 1000)}`
+  // 同じキャンペーンに属する広告セット数を取得
+  const campaignAdSets = getAdSetsByCampaignId(campaignId)
+  const nextNum = campaignAdSets.length + 1
+  // 5桁の数字にフォーマット（例：00001）
+  const formattedNum = nextNum.toString().padStart(5, "0")
+  return `${campaignId}_as${formattedNum}`
 }
 
 // 広告関連の関数
@@ -297,6 +321,12 @@ export function deleteAd(adId: string): void {
   setStorageItem(STORAGE_KEYS.ADS, ads)
 }
 
+// 命名規則に従った広告ID生成
 export function generateNewAdId(adSetId: string): string {
-  return `ad_${adSetId}_${Date.now()}_${Math.floor(Math.random() * 1000)}`
+  // 同じ広告セットに属する広告数を取得
+  const adSetAds = getAdsByAdSetId(adSetId)
+  const nextNum = adSetAds.length + 1
+  // 5桁の数字にフォーマット（例：00001）
+  const formattedNum = nextNum.toString().padStart(5, "0")
+  return `${adSetId}_ad${formattedNum}`
 }

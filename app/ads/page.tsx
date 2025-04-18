@@ -1,40 +1,64 @@
+"use client"
+
 import Link from "next/link"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Eye, Edit, Trash, Plus } from "lucide-react"
+import * as LocalStorage from "@/lib/local-storage"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function AdsPage() {
-  // サンプルデータ
-  const ads = [
-    {
-      id: "ad_123456",
-      name: "夏季キャンペーン広告",
-      status: "ACTIVE",
-      adset: "メインターゲット広告セット",
-      impressions: 12345,
-      clicks: 1234,
-      ctr: "10.0%",
-    },
-    {
-      id: "ad_234567",
-      name: "新商品プロモーション",
-      status: "ACTIVE",
-      adset: "若年層ターゲット広告セット",
-      impressions: 8765,
-      clicks: 765,
-      ctr: "8.7%",
-    },
-    {
-      id: "ad_345678",
-      name: "冬季セール告知",
-      status: "PAUSED",
-      adset: "リターゲティング広告セット",
-      impressions: 5432,
-      clicks: 432,
-      ctr: "7.9%",
-    },
-  ]
+  const [ads, setAds] = useState<LocalStorage.Ad[]>(() => {
+    // 広告データをローカルストレージから取得
+    if (typeof window !== "undefined") {
+      return LocalStorage.getAds()
+    }
+    return []
+  })
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [adToDelete, setAdToDelete] = useState<string | null>(null)
+  const { toast } = useToast()
+
+  // 削除ダイアログを開く
+  const openDeleteDialog = (adId: string) => {
+    setAdToDelete(adId)
+    setDeleteDialogOpen(true)
+  }
+
+  // 広告を削除
+  const deleteAd = () => {
+    if (adToDelete) {
+      try {
+        LocalStorage.deleteAd(adToDelete)
+        setAds(ads.filter((ad) => ad.ad_id !== adToDelete))
+        toast({
+          title: "削除完了",
+          description: "広告を削除しました。",
+        })
+      } catch (error) {
+        console.error("削除エラー:", error)
+        toast({
+          title: "エラー",
+          description: "広告の削除中にエラーが発生しました。",
+          variant: "destructive",
+        })
+      }
+    }
+    setDeleteDialogOpen(false)
+    setAdToDelete(null)
+  }
 
   return (
     <div className="container mx-auto py-10">
@@ -68,8 +92,8 @@ export default function AdsPage() {
             </TableHeader>
             <TableBody>
               {ads.map((ad) => (
-                <TableRow key={ad.id}>
-                  <TableCell className="font-medium">{ad.name}</TableCell>
+                <TableRow key={ad.ad_id}>
+                  <TableCell className="font-medium">{ad.ad_name}</TableCell>
                   <TableCell>
                     <span
                       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -79,23 +103,23 @@ export default function AdsPage() {
                       {ad.status === "ACTIVE" ? "アクティブ" : "一時停止"}
                     </span>
                   </TableCell>
-                  <TableCell>{ad.adset}</TableCell>
-                  <TableCell className="text-right">{ad.impressions.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">{ad.clicks.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">{ad.ctr}</TableCell>
+                  <TableCell>{ad.adset_name}</TableCell>
+                  <TableCell className="text-right">{Math.floor(Math.random() * 10000).toLocaleString()}</TableCell>
+                  <TableCell className="text-right">{Math.floor(Math.random() * 1000).toLocaleString()}</TableCell>
+                  <TableCell className="text-right">{(Math.random() * 10).toFixed(1)}%</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end space-x-2">
-                      <Link href={`/ads/${ad.id}`}>
+                      <Link href={`/ads/${ad.ad_id}`}>
                         <Button variant="ghost" size="icon">
                           <Eye className="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Link href={`/ads/edit/${ad.id}`}>
+                      <Link href={`/ads/edit/${ad.ad_id}`}>
                         <Button variant="ghost" size="icon">
                           <Edit className="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Button variant="ghost" size="icon">
+                      <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(ad.ad_id)}>
                         <Trash className="h-4 w-4" />
                       </Button>
                     </div>
@@ -106,6 +130,23 @@ export default function AdsPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>広告の削除</AlertDialogTitle>
+            <AlertDialogDescription>
+              この広告を削除してもよろしいですか？この操作は元に戻せません。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteAd} className="bg-red-600 hover:bg-red-700">
+              削除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

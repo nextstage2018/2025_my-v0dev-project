@@ -21,6 +21,22 @@ const nextConfig = {
     };
     return config;
   },
+  // 明示的なルーティング設定
+  async rewrites() {
+    return [
+      {
+        source: '/projects/new',
+        destination: '/projects/new',
+        has: [
+          {
+            type: 'query',
+            key: 'client_id',
+            value: '(?<clientId>.*)',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

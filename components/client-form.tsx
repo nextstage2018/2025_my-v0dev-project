@@ -1,30 +1,26 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, type FormEvent } from "react"
+import type React from "react"
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, CheckCircle } from "lucide-react"
-import { z } from "zod"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useDatabase } from "@/contexts/database-context"
 import * as LocalStorage from "@/lib/local-storage"
 import DatabaseModeSelector from "./database-mode-selector"
 import { useRouter } from "next/navigation"
 
-// クライアント情報のバリデーションスキーマ
-const clientSchema = z.object({
-  client_name: z.string().min(1, "クライアント名は必須です"),
-  industry_category: z.string().optional(),
-  contact_person: z.string().optional(),
-  email: z.string().email("有効なメールアドレスを入力してください").optional().or(z.literal("")),
-  phone: z.string().optional(),
-})
-
-type ClientFormValues = z.infer<typeof clientSchema>
+// シンプルなフォーム実装のためのインターフェース
+interface ClientFormData {
+  client_name: string
+  industry_category: string
+  contact_person: string
+  email: string
+  phone: string
+}
 
 export default function ClientForm({ clientId }: { clientId?: string }) {
   const { mode } = useDatabase()
@@ -34,16 +30,20 @@ export default function ClientForm({ clientId }: { clientId?: string }) {
   const [success, setSuccess] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState(false)
 
-  const form = useForm<ClientFormValues>({
-    resolver: zodResolver(clientSchema),
-    defaultValues: {
-      client_name: "",
-      industry_category: "",
-      contact_person: "",
-      email: "",
-      phone: "",
-    },
+  // フォームの状態を useState で管理
+  const [formData, setFormData] = useState<ClientFormData>({
+    client_name: "",
+    industry_category: "",
+    contact_person: "",
+    email: "",
+    phone: "",
   })
+
+  // フォームのバリデーションエラー
+  const [validationErrors, setValidationErrors] = useState<{
+    client_name?: string
+    email?: string
+  }>({})
 
   // 既存のクライアントを編集する場合、データを読み込む
   useEffect(() => {
@@ -51,7 +51,7 @@ export default function ClientForm({ clientId }: { clientId?: string }) {
       const client = LocalStorage.getClientById(clientId)
       if (client) {
         setIsEditing(true)
-        form.reset({
+        setFormData({
           client_name: client.client_name,
           industry_category: client.industry_category || "",
           contact_person: client.contact_person || "",
@@ -60,12 +60,60 @@ export default function ClientForm({ clientId }: { clientId?: string }) {
         })
       }
     }
-  }, [clientId, form])
+  }, [clientId])
 
-  const onSubmit = async (data: ClientFormValues) => {
+  // 入力フィールドの変更を処理
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+
+    // バリデーションエラーをクリア
+    if (name === "client_name" || name === "email") {
+      setValidationErrors((prev) => ({
+        ...prev,
+        [name]: undefined,
+      }))
+    }
+  }
+
+  // セレクトの変更を処理
+  const handleSelectChange = (value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      industry_category: value,
+    }))
+  }
+
+  // フォーム送信処理
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault()
     setIsLoading(true)
     setError(null)
     setSuccess(null)
+
+    // 簡易バリデーション
+    const errors: {
+      client_name?: string
+      email?: string
+    } = {}
+
+    if (!formData.client_name.trim()) {
+      errors.client_name = "クライアント名は必須です"
+    }
+
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = "有効なメールアドレスを入力してください"
+    }
+
+    // バリデーションエラーがある場合は処理を中止
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors)
+      setIsLoading(false)
+      return
+    }
 
     try {
       // クライアントIDの生成または既存IDの使用
@@ -74,11 +122,11 @@ export default function ClientForm({ clientId }: { clientId?: string }) {
       // クライアントデータの構築
       const clientData: LocalStorage.Client = {
         client_id: newClientId,
-        client_name: data.client_name,
-        industry_category: data.industry_category,
-        contact_person: data.contact_person,
-        email: data.email,
-        phone: data.phone,
+        client_name: formData.client_name,
+        industry_category: formData.industry_category || undefined,
+        contact_person: formData.contact_person || undefined,
+        email: formData.email || undefined,
+        phone: formData.phone || undefined,
         created_at: isEditing
           ? LocalStorage.getClientById(clientId!)?.created_at || new Date().toISOString()
           : new Date().toISOString(),
@@ -88,19 +136,18 @@ export default function ClientForm({ clientId }: { clientId?: string }) {
       if (mode === "local") {
         // ローカルストレージに保存
         LocalStorage.saveClient(clientData)
-        setSuccess(`クライアント「${data.client_name}」を${isEditing ? "更新" : "登録"}しました。`)
-        router.push("/clients")
+        setSuccess(`クライアント「${formData.client_name}」を${isEditing ? "更新" : "登録"}しました。`)
+
+        // 成功メッセージを表示した後、少し待ってからリダイレクト
+        setTimeout(() => {
+          router.push("/clients")
+        }, 1500)
       } else if (mode === "mock-api") {
         // モックAPIに保存
         setSuccess("モックAPIは現在使用できません")
       } else {
         // 実際のAPIに保存
         setSuccess("実際のAPIは現在使用できません")
-      }
-
-      if (!isEditing) {
-        // 新規作成の場合はフォームをリセット
-        form.reset()
       }
     } catch (err: any) {
       console.error("クライアント登録エラー:", err)
@@ -120,121 +167,110 @@ export default function ClientForm({ clientId }: { clientId?: string }) {
         <DatabaseModeSelector />
       </CardHeader>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <CardContent className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+      <form onSubmit={handleSubmit}>
+        <CardContent className="space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
-            {success && (
-              <Alert className="bg-green-50 border-green-500 text-green-700">
-                <CheckCircle className="h-4 w-4 mr-2" />
-                <AlertDescription>{success}</AlertDescription>
-              </Alert>
-            )}
+          {success && (
+            <Alert className="bg-green-50 border-green-500 text-green-700">
+              <CheckCircle className="h-4 w-4 mr-2" />
+              <AlertDescription>{success}</AlertDescription>
+            </Alert>
+          )}
 
-            <FormField
-              control={form.control}
+          <div className="space-y-2">
+            <label htmlFor="client_name" className="text-sm font-medium">
+              クライアント名
+            </label>
+            <Input
+              id="client_name"
               name="client_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>クライアント名</FormLabel>
-                  <FormControl>
-                    <Input placeholder="クライアント名を入力" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              placeholder="クライアント名を入力"
+              value={formData.client_name}
+              onChange={handleInputChange}
             />
+            {validationErrors.client_name && <p className="text-sm text-red-500">{validationErrors.client_name}</p>}
+          </div>
 
-            <FormField
-              control={form.control}
-              name="industry_category"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>業種</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="業種を選択" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="retail">小売業</SelectItem>
-                      <SelectItem value="it">IT・通信</SelectItem>
-                      <SelectItem value="manufacturing">製造業</SelectItem>
-                      <SelectItem value="finance">金融・保険</SelectItem>
-                      <SelectItem value="service">サービス業</SelectItem>
-                      <SelectItem value="other">その他</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <div className="space-y-2">
+            <label htmlFor="industry_category" className="text-sm font-medium">
+              業種
+            </label>
+            <Select value={formData.industry_category} onValueChange={handleSelectChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="業種を選択" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="retail">小売業</SelectItem>
+                <SelectItem value="it">IT・通信</SelectItem>
+                <SelectItem value="manufacturing">製造業</SelectItem>
+                <SelectItem value="finance">金融・保険</SelectItem>
+                <SelectItem value="service">サービス業</SelectItem>
+                <SelectItem value="other">その他</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-            <FormField
-              control={form.control}
+          <div className="space-y-2">
+            <label htmlFor="contact_person" className="text-sm font-medium">
+              担当者名
+            </label>
+            <Input
+              id="contact_person"
               name="contact_person"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>担当者名</FormLabel>
-                  <FormControl>
-                    <Input placeholder="担当者名を入力" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              placeholder="担当者名を入力"
+              value={formData.contact_person}
+              onChange={handleInputChange}
             />
+          </div>
 
-            <FormField
-              control={form.control}
+          <div className="space-y-2">
+            <label htmlFor="email" className="text-sm font-medium">
+              メールアドレス
+            </label>
+            <Input
+              id="email"
               name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>メールアドレス</FormLabel>
-                  <FormControl>
-                    <Input placeholder="example@example.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              placeholder="example@example.com"
+              value={formData.email}
+              onChange={handleInputChange}
             />
+            {validationErrors.email && <p className="text-sm text-red-500">{validationErrors.email}</p>}
+          </div>
 
-            <FormField
-              control={form.control}
+          <div className="space-y-2">
+            <label htmlFor="phone" className="text-sm font-medium">
+              電話番号
+            </label>
+            <Input
+              id="phone"
               name="phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>電話番号</FormLabel>
-                  <FormControl>
-                    <Input placeholder="03-1234-5678" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              placeholder="03-1234-5678"
+              value={formData.phone}
+              onChange={handleInputChange}
             />
-          </CardContent>
+          </div>
+        </CardContent>
 
-          <CardFooter>
-            <Button type="submit" disabled={isLoading} className="w-full">
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isEditing ? "更新中..." : "登録中..."}
-                </>
-              ) : isEditing ? (
-                "クライアントを更新"
-              ) : (
-                "クライアントを登録"
-              )}
-            </Button>
-          </CardFooter>
-        </form>
-      </Form>
+        <CardFooter>
+          <Button type="submit" disabled={isLoading} className="w-full">
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {isEditing ? "更新中..." : "登録中..."}
+              </>
+            ) : isEditing ? (
+              "クライアントを更新"
+            ) : (
+              "クライアントを登録"
+            )}
+          </Button>
+        </CardFooter>
+      </form>
     </Card>
   )
 }

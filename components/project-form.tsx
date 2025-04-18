@@ -36,7 +36,10 @@ type Client = {
   client_name: string
 }
 
-export default function ProjectForm({ projectId }: { projectId?: string }) {
+export default function ProjectForm({
+  projectId,
+  initialClientId = "",
+}: { projectId?: string; initialClientId?: string }) {
   const { mode } = useDatabase()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
@@ -50,12 +53,19 @@ export default function ProjectForm({ projectId }: { projectId?: string }) {
     resolver: zodResolver(projectSchema),
     defaultValues: {
       project_name: "",
-      client_id: "",
+      client_id: initialClientId,
       description: "",
       start_date: new Date(),
       status: "ACTIVE",
     },
   })
+
+  // useEffectでinitialClientIdが変更された場合に対応
+  useEffect(() => {
+    if (initialClientId && !projectId) {
+      form.setValue("client_id", initialClientId)
+    }
+  }, [initialClientId, form, projectId])
 
   // クライアント一覧を取得
   useEffect(() => {
